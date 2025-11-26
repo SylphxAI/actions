@@ -7,6 +7,14 @@ branding:
   color: 'blue'
 
 inputs:
+  # ========== Required ==========
+  npm-token:
+    description: 'NPM authentication token'
+    required: true
+  github-token:
+    description: 'GitHub token for creating releases and PRs'
+    required: true
+
   # ========== Bump Configuration ==========
   mode:
     description: 'Bump mode: auto (default), release, version, or pr'
@@ -14,44 +22,14 @@ inputs:
   base-branch:
     description: 'Base branch for PR mode'
     default: 'main'
-
-  # ========== Build Configuration ==========
-  build-command:
-    description: 'Command to build packages (runs before publish)'
-    default: ''
-  skip-build:
-    description: 'Skip the build step'
-    default: 'false'
-  test-command:
-    description: 'Command to run tests before publishing (optional)'
-    default: ''
-
-  # ========== Runtime Configuration ==========
-  bun-version:
-    description: 'Bun version to use'
-    default: 'latest'
-  node-version:
-    description: 'Node.js version (for npm publish)'
-    default: '20'
-
-  # ========== Registry Configuration ==========
-  npm-registry:
-    description: 'NPM registry URL'
-    default: 'https://registry.npmjs.org'
-
-  # ========== Release Configuration ==========
   dry-run:
     description: 'Preview changes without publishing'
     default: 'false'
-  tag:
-    description: 'Create git tags'
-    default: 'true'
-  changelog:
-    description: 'Update CHANGELOG.md'
-    default: 'true'
-  github-release:
-    description: 'Create GitHub release'
-    default: 'true'
+
+  # ========== Build ==========
+  build-command:
+    description: 'Command to build packages (leave empty to skip)'
+    default: ''
 
   # ========== Multi-platform Support ==========
   download-artifacts:
@@ -72,18 +50,10 @@ inputs:
     description: 'Slack webhook URL for notifications'
     default: ''
 
-  # ========== Advanced Options ==========
+  # ========== Advanced ==========
   working-directory:
     description: 'Working directory for commands'
     default: '.'
-
-  # ========== Required Secrets (passed as inputs) ==========
-  npm-token:
-    description: 'NPM authentication token'
-    required: true
-  github-token:
-    description: 'GitHub token for creating releases and PRs'
-    required: true
 
 outputs:
   published:
@@ -105,104 +75,17 @@ runs:
       with:
         path: ${{ inputs.artifacts-path }}
 
-    - name: Build (if configured)
-      if: inputs.build-command != '' && inputs.skip-build != 'true'
+    - name: Build
+      if: inputs.build-command != ''
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.build-command }}
-
-    - name: Run Tests
-      if: inputs.test-command != ''
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: ${{ inputs.test-command }}
 
     - name: Pre-publish setup
       if: inputs.pre-publish-command != ''
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.pre-publish-command }}
-
-    - name: Resolve workspace protocol
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        # Resolve workspace:^ to actual versions for npm publish compatibility
-        if grep -rq '"workspace:' . --include="package.json" 2>/dev/null; then
-          echo "🔧 Resolving workspace:^ protocol..."
-
-          bun -e "
-            const fs = require('fs');
-            const path = require('path');
-
-            // Get all workspace package versions
-            const workspaceVersions = new Map();
-            const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            const workspaces = rootPkg.workspaces || [];
-
-            for (const pattern of workspaces) {
-              try {
-                const baseDir = pattern.replace('/*', '');
-                const dirs = fs.readdirSync(baseDir);
-                for (const dir of dirs) {
-                  const pkgPath = path.join(baseDir, dir, 'package.json');
-                  if (fs.existsSync(pkgPath)) {
-                    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-                    if (pkg.name && pkg.version) {
-                      workspaceVersions.set(pkg.name, pkg.version);
-                    }
-                  }
-                }
-              } catch (e) {}
-            }
-
-            // Resolve workspace: in all package.json files
-            const resolveWorkspace = (deps) => {
-              if (!deps) return false;
-              let modified = false;
-              for (const [name, version] of Object.entries(deps)) {
-                if (typeof version === 'string' && version.startsWith('workspace:')) {
-                  const actualVersion = workspaceVersions.get(name);
-                  if (actualVersion) {
-                    const prefix = version.replace('workspace:', '').replace('*', '^');
-                    deps[name] = (prefix === '^' || prefix === '') ? '^' + actualVersion : prefix + actualVersion;
-                    modified = true;
-                  }
-                }
-              }
-              return modified;
-            };
-
-            const processPackage = (pkgPath) => {
-              const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-              let modified = false;
-              modified = resolveWorkspace(pkg.dependencies) || modified;
-              modified = resolveWorkspace(pkg.devDependencies) || modified;
-              modified = resolveWorkspace(pkg.peerDependencies) || modified;
-              if (modified) {
-                fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-                console.log('  ✅ Resolved:', pkgPath);
-              }
-            };
-
-            // Process root and all workspace packages
-            processPackage('package.json');
-            for (const pattern of workspaces) {
-              try {
-                const baseDir = pattern.replace('/*', '');
-                const dirs = fs.readdirSync(baseDir);
-                for (const dir of dirs) {
-                  const pkgPath = path.join(baseDir, dir, 'package.json');
-                  if (fs.existsSync(pkgPath)) {
-                    processPackage(pkgPath);
-                  }
-                }
-              } catch (e) {}
-            }
-          " 2>/dev/null || true
-
-          echo "✅ Workspace protocol resolution complete"
-        fi
 
     - name: Run Bump
       id: bump
@@ -211,9 +94,6 @@ runs:
         mode: ${{ inputs.mode }}
         base-branch: ${{ inputs.base-branch }}
         dry-run: ${{ inputs.dry-run }}
-        tag: ${{ inputs.tag }}
-        changelog: ${{ inputs.changelog }}
-        github-release: ${{ inputs.github-release }}
         working-directory: ${{ inputs.working-directory }}
         github-token: ${{ inputs.github-token }}
         npm-token: ${{ inputs.npm-token }}
@@ -235,13 +115,10 @@ runs:
         REPO="${{ github.repository }}"
         REPO_URL="https://github.com/$REPO"
 
-        # Build message based on single package or monorepo
         if [ -n "$VERSION" ]; then
-          # Single package
           PKG_NAME=$(jq -r .name package.json 2>/dev/null || echo "$REPO")
           MESSAGE="📦 *${PKG_NAME}* \`v${VERSION}\` published\n<${REPO_URL}/releases/tag/v${VERSION}|View Release>"
         elif [ -n "$VERSIONS" ] && [ "$VERSIONS" != "{}" ]; then
-          # Monorepo - list all packages
           MESSAGE="📦 *Packages published*\n"
           for pkg in $(echo "$VERSIONS" | jq -r 'keys[]' 2>/dev/null); do
             ver=$(echo "$VERSIONS" | jq -r --arg p "$pkg" '.[$p]' 2>/dev/null)
@@ -252,7 +129,6 @@ runs:
           MESSAGE="📦 Release published from *${REPO}*\n<${REPO_URL}|View Repository>"
         fi
 
-        # Send to Slack
         curl -s -X POST "$SLACK_WEBHOOK" \
           -H "Content-Type: application/json" \
           -d "{\"text\": \"${MESSAGE}\"}"
@@ -261,16 +137,9 @@ runs:
       if: failure() && inputs.slack-webhook != ''
       shell: bash
       run: |
-        WEBHOOK="${{ inputs.slack-webhook }}"
         REPO="${{ github.repository }}"
         RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        BRANCH="${{ github.ref_name }}"
 
-        MESSAGE="❌ *Publish failed*\n"
-        MESSAGE="${MESSAGE}Repository: ${REPO}\n"
-        MESSAGE="${MESSAGE}Branch: ${BRANCH}\n"
-        MESSAGE="${MESSAGE}<${RUN_URL}|View Workflow>"
-
-        curl -s -X POST "$WEBHOOK" \
+        curl -s -X POST "${{ inputs.slack-webhook }}" \
           -H "Content-Type: application/json" \
-          -d "{\"text\": \"${MESSAGE}\"}"
+          -d "{\"text\": \"❌ *Publish failed*\nRepository: ${REPO}\n<${RUN_URL}|View Workflow>\"}"

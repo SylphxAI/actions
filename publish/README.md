@@ -2,14 +2,6 @@
 
 Publish packages to npm using bump with Slack notifications.
 
-## Features
-
-- 📦 Automatic versioning based on conventional commits
-- 🔄 Creates release PRs or publishes directly
-- 🔔 Slack notifications on success/failure
-- 📝 Auto-generated changelog
-- ⚡ Bun-first, zero config
-
 ## Usage
 
 ```yaml
@@ -65,19 +57,14 @@ jobs:
 | `github-token` | GitHub token for releases/PRs | **required** |
 | `mode` | Bump mode: auto, release, version, pr | `auto` |
 | `base-branch` | Base branch for PR mode | `main` |
-| `build-command` | Build command (runs before publish) | `''` |
-| `skip-build` | Skip build step | `false` |
 | `dry-run` | Preview without publishing | `false` |
-| `tag` | Create git tags | `true` |
-| `changelog` | Update CHANGELOG.md | `true` |
-| `github-release` | Create GitHub release | `true` |
-| `slack-webhook` | Slack webhook URL | `''` |
-| `working-directory` | Working directory | `.` |
-| `bun-version` | Bun version | `latest` |
+| `build-command` | Build command (empty = skip) | `''` |
 | `download-artifacts` | Download build artifacts | `false` |
 | `artifacts-path` | Path to download artifacts to | `artifacts` |
-| `pre-publish-command` | Command before bump (e.g., platform setup) | `''` |
-| `post-publish-command` | Command after successful publish | `''` |
+| `pre-publish-command` | Command before bump | `''` |
+| `post-publish-command` | Command after publish | `''` |
+| `slack-webhook` | Slack webhook URL | `''` |
+| `working-directory` | Working directory | `.` |
 
 ## Outputs
 
@@ -119,7 +106,6 @@ jobs:
           npm-token: ${{ secrets.NPM_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           download-artifacts: 'true'
-          artifacts-path: 'artifacts'
           pre-publish-command: 'bun run create-platform-packages'
 ```
 
