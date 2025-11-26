@@ -74,6 +74,10 @@ jobs:
 | `slack-webhook` | Slack webhook URL | `''` |
 | `working-directory` | Working directory | `.` |
 | `bun-version` | Bun version | `latest` |
+| `download-artifacts` | Download build artifacts | `false` |
+| `artifacts-path` | Path to download artifacts to | `artifacts` |
+| `pre-publish-command` | Command before bump (e.g., platform setup) | `''` |
+| `post-publish-command` | Command after successful publish | `''` |
 
 ## Outputs
 
@@ -82,6 +86,42 @@ jobs:
 | `published` | Whether packages were published |
 | `version` | The new version (single package) |
 | `versions` | JSON object of versions (monorepo) |
+
+## Multi-platform Support
+
+For projects with native binaries built on multiple platforms:
+
+```yaml
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bun run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.os }}
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: SylphxAI/actions/publish@v1
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          download-artifacts: 'true'
+          artifacts-path: 'artifacts'
+          pre-publish-command: 'bun run create-platform-packages'
+```
 
 ## How it works
 

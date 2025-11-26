@@ -22,11 +22,22 @@ inputs:
   skip-build:
     description: 'Skip the build step'
     default: 'false'
+  test-command:
+    description: 'Command to run tests before publishing (optional)'
+    default: ''
 
   # ========== Runtime Configuration ==========
   bun-version:
     description: 'Bun version to use'
     default: 'latest'
+  node-version:
+    description: 'Node.js version (for npm publish)'
+    default: '20'
+
+  # ========== Registry Configuration ==========
+  npm-registry:
+    description: 'NPM registry URL'
+    default: 'https://registry.npmjs.org'
 
   # ========== Release Configuration ==========
   dry-run:
@@ -41,6 +52,20 @@ inputs:
   github-release:
     description: 'Create GitHub release'
     default: 'true'
+
+  # ========== Multi-platform Support ==========
+  download-artifacts:
+    description: 'Download build artifacts before publishing'
+    default: 'false'
+  artifacts-path:
+    description: 'Path to download artifacts to'
+    default: 'artifacts'
+  pre-publish-command:
+    description: 'Command to run before bump (e.g., create platform packages)'
+    default: ''
+  post-publish-command:
+    description: 'Command to run after successful publish'
+    default: ''
 
   # ========== Notification ==========
   slack-webhook:
@@ -74,11 +99,110 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Download build artifacts
+      if: inputs.download-artifacts == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        path: ${{ inputs.artifacts-path }}
+
     - name: Build (if configured)
       if: inputs.build-command != '' && inputs.skip-build != 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.build-command }}
+
+    - name: Run Tests
+      if: inputs.test-command != ''
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.test-command }}
+
+    - name: Pre-publish setup
+      if: inputs.pre-publish-command != ''
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.pre-publish-command }}
+
+    - name: Resolve workspace protocol
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Resolve workspace:^ to actual versions for npm publish compatibility
+        if grep -rq '"workspace:' . --include="package.json" 2>/dev/null; then
+          echo "🔧 Resolving workspace:^ protocol..."
+
+          bun -e "
+            const fs = require('fs');
+            const path = require('path');
+
+            // Get all workspace package versions
+            const workspaceVersions = new Map();
+            const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const workspaces = rootPkg.workspaces || [];
+
+            for (const pattern of workspaces) {
+              try {
+                const baseDir = pattern.replace('/*', '');
+                const dirs = fs.readdirSync(baseDir);
+                for (const dir of dirs) {
+                  const pkgPath = path.join(baseDir, dir, 'package.json');
+                  if (fs.existsSync(pkgPath)) {
+                    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+                    if (pkg.name && pkg.version) {
+                      workspaceVersions.set(pkg.name, pkg.version);
+                    }
+                  }
+                }
+              } catch (e) {}
+            }
+
+            // Resolve workspace: in all package.json files
+            const resolveWorkspace = (deps) => {
+              if (!deps) return false;
+              let modified = false;
+              for (const [name, version] of Object.entries(deps)) {
+                if (typeof version === 'string' && version.startsWith('workspace:')) {
+                  const actualVersion = workspaceVersions.get(name);
+                  if (actualVersion) {
+                    const prefix = version.replace('workspace:', '').replace('*', '^');
+                    deps[name] = (prefix === '^' || prefix === '') ? '^' + actualVersion : prefix + actualVersion;
+                    modified = true;
+                  }
+                }
+              }
+              return modified;
+            };
+
+            const processPackage = (pkgPath) => {
+              const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+              let modified = false;
+              modified = resolveWorkspace(pkg.dependencies) || modified;
+              modified = resolveWorkspace(pkg.devDependencies) || modified;
+              modified = resolveWorkspace(pkg.peerDependencies) || modified;
+              if (modified) {
+                fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+                console.log('  ✅ Resolved:', pkgPath);
+              }
+            };
+
+            // Process root and all workspace packages
+            processPackage('package.json');
+            for (const pattern of workspaces) {
+              try {
+                const baseDir = pattern.replace('/*', '');
+                const dirs = fs.readdirSync(baseDir);
+                for (const dir of dirs) {
+                  const pkgPath = path.join(baseDir, dir, 'package.json');
+                  if (fs.existsSync(pkgPath)) {
+                    processPackage(pkgPath);
+                  }
+                }
+              } catch (e) {}
+            }
+          " 2>/dev/null || true
+
+          echo "✅ Workspace protocol resolution complete"
+        fi
 
     - name: Run Bump
       id: bump
@@ -93,6 +217,12 @@ runs:
         working-directory: ${{ inputs.working-directory }}
         github-token: ${{ inputs.github-token }}
         npm-token: ${{ inputs.npm-token }}
+
+    - name: Post-publish actions
+      if: inputs.post-publish-command != '' && steps.bump.outputs.published == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.post-publish-command }}
 
     - name: Notify Slack on publish
       if: steps.bump.outputs.published == 'true' && inputs.slack-webhook != ''
