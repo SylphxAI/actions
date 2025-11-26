@@ -1,14 +1,14 @@
 # Publish Action
 
-Publish packages to npm with changesets, workspace resolution, and Slack notifications.
+Publish packages to npm using bump with Slack notifications.
 
 ## Features
 
-- 🔧 Automatic `workspace:^` protocol resolution
-- 📦 Changesets-based versioning and publishing
+- 📦 Automatic versioning based on conventional commits
+- 🔄 Creates release PRs or publishes directly
 - 🔔 Slack notifications on success/failure
-- 🏗️ Multi-platform artifact support
-- ⚡ Bun-first, Node.js compatible
+- 📝 Auto-generated changelog
+- ⚡ Bun-first, zero config
 
 ## Usage
 
@@ -37,41 +37,55 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### With Slack notifications
+
+```yaml
+- uses: SylphxAI/actions/publish@v1
+  with:
+    npm-token: ${{ secrets.NPM_TOKEN }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+```
+
+### With custom build
+
+```yaml
+- uses: SylphxAI/actions/publish@v1
+  with:
+    npm-token: ${{ secrets.NPM_TOKEN }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    build-command: 'bun run build'
+```
+
 ## Inputs
 
 | Input | Description | Default |
 |-------|-------------|---------|
 | `npm-token` | NPM authentication token | **required** |
 | `github-token` | GitHub token for releases/PRs | **required** |
-| `build-command` | Build command | `bun run build` |
+| `mode` | Bump mode: auto, release, version, pr | `auto` |
+| `base-branch` | Base branch for PR mode | `main` |
+| `build-command` | Build command (runs before publish) | `''` |
 | `skip-build` | Skip build step | `false` |
-| `test-command` | Test command (optional) | `''` |
-| `version-command` | Version command | `bun run version-packages` |
-| `publish-command` | Publish command | `bun run release` |
-| `bun-version` | Bun version | `latest` |
-| `node-version` | Node.js version | `20` |
-| `npm-registry` | NPM registry URL | `https://registry.npmjs.org` |
-| `create-github-releases` | Create GitHub releases | `true` |
-| `working-directory` | Working directory | `.` |
+| `dry-run` | Preview without publishing | `false` |
+| `tag` | Create git tags | `true` |
+| `changelog` | Update CHANGELOG.md | `true` |
+| `github-release` | Create GitHub release | `true` |
 | `slack-webhook` | Slack webhook URL | `''` |
-| `download-artifacts` | Download build artifacts | `false` |
-| `artifacts-path` | Artifacts path | `artifacts` |
-| `pre-publish-command` | Pre-publish command | `''` |
-| `post-publish-command` | Post-publish command | `''` |
+| `working-directory` | Working directory | `.` |
+| `bun-version` | Bun version | `latest` |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
 | `published` | Whether packages were published |
-| `published-packages` | JSON array of published packages |
+| `version` | The new version (single package) |
+| `versions` | JSON object of versions (monorepo) |
 
-## Workspace Protocol Resolution
+## How it works
 
-This action automatically resolves `workspace:^` dependencies to actual version numbers before publishing, fixing the [changesets issue #1011](https://github.com/changesets/changesets/issues/1011).
+1. **Push to main** → Creates/updates release PR
+2. **Merge release PR** → Publishes to npm + Slack notification
 
-## Slack Notifications
-
-If `slack-webhook` is provided, notifications are sent:
-- ✅ On successful publish with package links
-- ❌ On failure with workflow link
+Uses [@sylphx/bump](https://github.com/SylphxAI/bump) under the hood.
