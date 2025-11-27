@@ -69,12 +69,33 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Detect effective mode
+      id: mode
+      shell: bash
+      env:
+        INPUT_MODE: ${{ inputs.mode }}
+        COMMIT_MSG: ${{ github.event.head_commit.message }}
+      run: |
+        MODE="$INPUT_MODE"
+        if [ "$MODE" = "auto" ]; then
+          if [ -z "${COMMIT_MSG:-}" ]; then
+            MODE="publish"
+          elif [[ "$COMMIT_MSG" == *"chore(release):"* ]]; then
+            MODE="publish"
+          else
+            MODE="pr"
+          fi
+        fi
+        echo "effective=$MODE" >> $GITHUB_OUTPUT
+        echo "is_publish=$([[ "$MODE" != "pr" ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
 
     - name: Cache bun dependencies
+      if: steps.mode.outputs.is_publish == 'true'
       uses: actions/cache@v4
       with:
         path: |
@@ -86,25 +107,25 @@ runs:
           bun-${{ runner.os }}-
 
     - name: Install dependencies
-      if: inputs.build-command != '' || inputs.pre-publish-command != ''
+      if: steps.mode.outputs.is_publish == 'true' && (inputs.build-command != '' || inputs.pre-publish-command != '')
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: bun install --frozen-lockfile 2>/dev/null || bun install
 
     - name: Download build artifacts
-      if: inputs.download-artifacts == 'true'
+      if: steps.mode.outputs.is_publish == 'true' && inputs.download-artifacts == 'true'
       uses: actions/download-artifact@v4
       with:
         path: ${{ inputs.artifacts-path }}
 
     - name: Build
-      if: inputs.build-command != ''
+      if: steps.mode.outputs.is_publish == 'true' && inputs.build-command != ''
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.build-command }}
 
     - name: Pre-publish setup
-      if: inputs.pre-publish-command != ''
+      if: steps.mode.outputs.is_publish == 'true' && inputs.pre-publish-command != ''
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.pre-publish-command }}
