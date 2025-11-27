@@ -7,15 +7,12 @@ branding:
   color: 'blue'
 
 inputs:
-  # ========== Required ==========
   npm-token:
     description: 'NPM authentication token'
     required: true
   github-token:
     description: 'GitHub token for creating releases and PRs'
     required: true
-
-  # ========== Bump Configuration ==========
   mode:
     description: 'Bump mode: auto (default), release, version, or pr'
     default: 'auto'
@@ -25,111 +22,27 @@ inputs:
   dry-run:
     description: 'Preview changes without publishing'
     default: 'false'
-
-  # ========== Build ==========
-  build-command:
-    description: 'Command to build packages (leave empty to skip)'
-    default: ''
-
-  # ========== Multi-platform Support ==========
-  download-artifacts:
-    description: 'Download build artifacts before publishing'
-    default: 'false'
-  artifacts-path:
-    description: 'Path to download artifacts to'
-    default: 'artifacts'
-  pre-publish-command:
-    description: 'Command to run before bump (e.g., create platform packages)'
-    default: ''
-  post-publish-command:
-    description: 'Command to run after successful publish'
-    default: ''
-
-  # ========== Notification ==========
+  working-directory:
+    description: 'Working directory'
+    default: '.'
   slack-webhook:
     description: 'Slack webhook URL for notifications'
     default: ''
-
-  # ========== Advanced ==========
-  working-directory:
-    description: 'Working directory for commands'
-    default: '.'
 
 outputs:
   published:
     description: 'Whether packages were published'
     value: ${{ steps.bump.outputs.published }}
   version:
-    description: 'The new version (for single package repos)'
+    description: 'The new version (single package)'
     value: ${{ steps.bump.outputs.version }}
   versions:
-    description: 'JSON object of package versions (for monorepos)'
+    description: 'JSON object of package versions (monorepo)'
     value: ${{ steps.bump.outputs.versions }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Detect effective mode
-      id: mode
-      shell: bash
-      env:
-        INPUT_MODE: ${{ inputs.mode }}
-        COMMIT_MSG: ${{ github.event.head_commit.message }}
-      run: |
-        MODE="$INPUT_MODE"
-        if [ "$MODE" = "auto" ]; then
-          if [ -z "${COMMIT_MSG:-}" ]; then
-            MODE="publish"
-          elif [[ "$COMMIT_MSG" == *"chore(release):"* ]]; then
-            MODE="publish"
-          else
-            MODE="pr"
-          fi
-        fi
-        echo "effective=$MODE" >> $GITHUB_OUTPUT
-        echo "is_publish=$([[ "$MODE" != "pr" ]] && echo true || echo false)" >> $GITHUB_OUTPUT
-
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: latest
-
-    - name: Cache bun dependencies
-      if: steps.mode.outputs.is_publish == 'true'
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.bun/install/cache
-          node_modules
-          */node_modules
-        key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lockb', '**/package.json') }}
-        restore-keys: |
-          bun-${{ runner.os }}-
-
-    - name: Install dependencies
-      if: steps.mode.outputs.is_publish == 'true' && (inputs.build-command != '' || inputs.pre-publish-command != '')
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: bun install --frozen-lockfile 2>/dev/null || bun install
-
-    - name: Download build artifacts
-      if: steps.mode.outputs.is_publish == 'true' && inputs.download-artifacts == 'true'
-      uses: actions/download-artifact@v4
-      with:
-        path: ${{ inputs.artifacts-path }}
-
-    - name: Build
-      if: steps.mode.outputs.is_publish == 'true' && inputs.build-command != ''
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: ${{ inputs.build-command }}
-
-    - name: Pre-publish setup
-      if: steps.mode.outputs.is_publish == 'true' && inputs.pre-publish-command != ''
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: ${{ inputs.pre-publish-command }}
-
     - name: Run Bump
       id: bump
       uses: SylphxAI/bump@v0
@@ -140,12 +53,6 @@ runs:
         working-directory: ${{ inputs.working-directory }}
         github-token: ${{ inputs.github-token }}
         npm-token: ${{ inputs.npm-token }}
-
-    - name: Post-publish actions
-      if: inputs.post-publish-command != '' && steps.bump.outputs.published == 'true'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: ${{ inputs.post-publish-command }}
 
     - name: Notify Slack on publish
       if: steps.bump.outputs.published == 'true' && inputs.slack-webhook != ''
@@ -180,9 +87,6 @@ runs:
       if: failure() && inputs.slack-webhook != ''
       shell: bash
       run: |
-        REPO="${{ github.repository }}"
-        RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
         curl -s -X POST "${{ inputs.slack-webhook }}" \
           -H "Content-Type: application/json" \
-          -d "{\"text\": \"❌ *Publish failed*\nRepository: ${REPO}\n<${RUN_URL}|View Workflow>\"}"
+          -d "{\"text\": \"❌ *Publish failed*\nRepository: ${{ github.repository }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>\"}"
