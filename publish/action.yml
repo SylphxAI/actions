@@ -118,7 +118,6 @@ runs:
         working-directory: ${{ inputs.working-directory }}
         github-token: ${{ inputs.github-token }}
         npm-token: ${{ inputs.npm-token }}
-        skip-install: 'true'
 
     - name: Post-publish actions
       if: inputs.post-publish-command != '' && steps.bump.outputs.published == 'true'
