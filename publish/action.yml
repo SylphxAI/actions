@@ -69,6 +69,27 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
+    - name: Cache bun dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.bun/install/cache
+          node_modules
+          */node_modules
+        key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lockb', '**/package.json') }}
+        restore-keys: |
+          bun-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bun install --frozen-lockfile 2>/dev/null || bun install
+
     - name: Download build artifacts
       if: inputs.download-artifacts == 'true'
       uses: actions/download-artifact@v4
@@ -97,6 +118,7 @@ runs:
         working-directory: ${{ inputs.working-directory }}
         github-token: ${{ inputs.github-token }}
         npm-token: ${{ inputs.npm-token }}
+        skip-install: 'true'
 
     - name: Post-publish actions
       if: inputs.post-publish-command != '' && steps.bump.outputs.published == 'true'
