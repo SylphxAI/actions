@@ -1,5 +1,5 @@
-name: 'Slack Release Notification'
-description: 'Send Slack notification for package releases'
+name: 'Slack Notify'
+description: 'Send Slack notification'
 author: 'SylphxAI'
 
 branding:
@@ -10,22 +10,9 @@ inputs:
   webhook:
     description: 'Slack webhook URL'
     required: true
-  status:
-    description: 'Status: success or failure'
+  message:
+    description: 'Message to send (supports Slack mrkdwn format)'
     required: true
-    default: 'success'
-  version:
-    description: 'Single package version (optional)'
-    required: false
-  versions:
-    description: 'Monorepo versions JSON (optional)'
-    required: false
-  repository:
-    description: 'Repository name (defaults to github.repository)'
-    required: false
-  run-url:
-    description: 'Workflow run URL (for failure notifications)'
-    required: false
 
 runs:
   using: 'composite'
@@ -34,29 +21,8 @@ runs:
       shell: bash
       env:
         WEBHOOK: ${{ inputs.webhook }}
-        STATUS: ${{ inputs.status }}
-        VERSION: ${{ inputs.version }}
-        VERSIONS: ${{ inputs.versions }}
-        REPO: ${{ inputs.repository || github.repository }}
-        RUN_URL: ${{ inputs.run-url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+        MESSAGE: ${{ inputs.message }}
       run: |
-        REPO_URL="https://github.com/$REPO"
-
-        if [ "$STATUS" = "failure" ]; then
-          MESSAGE="❌ *Publish failed*\nRepository: ${REPO}\n<${RUN_URL}|View Workflow>"
-        elif [ -n "$VERSION" ]; then
-          MESSAGE="📦 *${REPO}* \`v${VERSION}\` published\n<${REPO_URL}/releases/tag/v${VERSION}|View Release>"
-        elif [ -n "$VERSIONS" ] && [ "$VERSIONS" != "{}" ]; then
-          MESSAGE="📦 *Packages published*\n"
-          for pkg in $(echo "$VERSIONS" | jq -r 'keys[]' 2>/dev/null); do
-            ver=$(echo "$VERSIONS" | jq -r --arg p "$pkg" '.[$p]' 2>/dev/null)
-            MESSAGE="${MESSAGE}• ${pkg}@${ver}\n"
-          done
-          MESSAGE="${MESSAGE}<${REPO_URL}|View Repository>"
-        else
-          MESSAGE="📦 Release published from *${REPO}*\n<${REPO_URL}|View Repository>"
-        fi
-
         curl -s -X POST "$WEBHOOK" \
           -H "Content-Type: application/json" \
-          -d "{\"text\": \"${MESSAGE}\"}"
+          -d "$(jq -n --arg text "$MESSAGE" '{text: $text}')"
