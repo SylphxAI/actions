@@ -86,6 +86,7 @@ runs:
           bun-${{ runner.os }}-
 
     - name: Install dependencies
+      if: inputs.build-command != '' || inputs.pre-publish-command != ''
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: bun install --frozen-lockfile 2>/dev/null || bun install
