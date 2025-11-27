@@ -1,0 +1,62 @@
+name: 'Slack Release Notification'
+description: 'Send Slack notification for package releases'
+author: 'SylphxAI'
+
+branding:
+  icon: 'message-circle'
+  color: 'purple'
+
+inputs:
+  webhook:
+    description: 'Slack webhook URL'
+    required: true
+  status:
+    description: 'Status: success or failure'
+    required: true
+    default: 'success'
+  version:
+    description: 'Single package version (optional)'
+    required: false
+  versions:
+    description: 'Monorepo versions JSON (optional)'
+    required: false
+  repository:
+    description: 'Repository name (defaults to github.repository)'
+    required: false
+  run-url:
+    description: 'Workflow run URL (for failure notifications)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Send Slack notification
+      shell: bash
+      env:
+        WEBHOOK: ${{ inputs.webhook }}
+        STATUS: ${{ inputs.status }}
+        VERSION: ${{ inputs.version }}
+        VERSIONS: ${{ inputs.versions }}
+        REPO: ${{ inputs.repository || github.repository }}
+        RUN_URL: ${{ inputs.run-url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+      run: |
+        REPO_URL="https://github.com/$REPO"
+
+        if [ "$STATUS" = "failure" ]; then
+          MESSAGE="❌ *Publish failed*\nRepository: ${REPO}\n<${RUN_URL}|View Workflow>"
+        elif [ -n "$VERSION" ]; then
+          MESSAGE="📦 *${REPO}* \`v${VERSION}\` published\n<${REPO_URL}/releases/tag/v${VERSION}|View Release>"
+        elif [ -n "$VERSIONS" ] && [ "$VERSIONS" != "{}" ]; then
+          MESSAGE="📦 *Packages published*\n"
+          for pkg in $(echo "$VERSIONS" | jq -r 'keys[]' 2>/dev/null); do
+            ver=$(echo "$VERSIONS" | jq -r --arg p "$pkg" '.[$p]' 2>/dev/null)
+            MESSAGE="${MESSAGE}• ${pkg}@${ver}\n"
+          done
+          MESSAGE="${MESSAGE}<${REPO_URL}|View Repository>"
+        else
+          MESSAGE="📦 Release published from *${REPO}*\n<${REPO_URL}|View Repository>"
+        fi
+
+        curl -s -X POST "$WEBHOOK" \
+          -H "Content-Type: application/json" \
+          -d "{\"text\": \"${MESSAGE}\"}"
