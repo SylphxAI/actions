@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "repo": "SylphxAI/actions",
+    "name": "SylphxAI Actions",
+    "lifecycle": "production",
+    "layer": "tooling",
+    "summary": "Shared GitHub Actions repository for reusable automation consumed by SylphxAI repositories through versioned action references.",
+    "goals": [
+      "Provide shared, versioned GitHub Action surfaces for SylphxAI repositories.",
+      "Maintain the Slack notification composite action in slack-notify/action.yml.",
+      "Keep action ownership, public surfaces, and adoption gaps explicit for agents."
+    ],
+    "nonGoals": [
+      "Own repository-specific CI, release, or deployment workflows.",
+      "Own organization reusable workflows that belong in SylphxAI/.github.",
+      "Own enterprise engineering doctrine, standards, or project manifest schema."
+    ]
+  },
+  "boundaries": {
+    "owns": [
+      {
+        "name": "shared-github-actions",
+        "description": "Reusable GitHub Action implementations and their versioned public action references."
+      },
+      {
+        "name": "slack-notify-action",
+        "description": "Composite action that sends a Slack message to a supplied webhook."
+      }
+    ],
+    "doesNotOwn": [
+      "Repository-specific CI, release, deployment, or preview workflows.",
+      "Organization reusable workflows owned by SylphxAI/.github.",
+      "Enterprise doctrine and manifest schema owned by SylphxAI/doctrine."
+    ],
+    "publicSurfaces": [
+      {
+        "type": "api",
+        "name": "Slack notify composite action",
+        "location": "slack-notify/action.yml"
+      },
+      {
+        "type": "documentation",
+        "name": "Action usage README",
+        "location": "README.md"
+      }
+    ],
+    "allowedDependencies": [
+      {
+        "repo": "SylphxAI/doctrine",
+        "surface": "project manifest schema and engineering doctrine",
+        "direction": "peer-public"
+      }
+    ],
+    "forbiddenCouplings": [
+      "Do not add product-specific workflow behavior to shared actions.",
+      "Do not make consuming repositories depend on private files outside documented action paths.",
+      "Do not fork doctrine standards into this repository."
+    ]
+  },
+  "documentation": {
+    "adr": {
+      "path": "docs/adr/",
+      "status": "planned"
+    },
+    "specs": {
+      "path": "docs/specs/",
+      "status": "planned"
+    },
+    "catalog": {
+      "path": ".doctrine/project.json",
+      "status": "present"
+    },
+    "runbooks": {
+      "path": "docs/runbooks/",
+      "status": "not-applicable"
+    },
+    "generatedReferences": {
+      "path": "README.md",
+      "status": "present"
+    }
+  },
+  "delivery": {
+    "ciModel": "none",
+    "requiredContexts": [],
+    "deployPath": "Consumers reference action paths through Git refs such as v1; there is no separate runtime deploy for this repository.",
+    "productionProof": "GitHub main/tag readback, action metadata validation, and successful downstream consumer workflow runs.",
+    "recoveryClass": "source-revertable"
+  },
+  "adoption": {
+    "status": "baseline",
+    "gaps": [
+      {
+        "id": "readme-action-surface-drift",
+        "description": "README documents a publish action path that is not present on main; align README, restore the action, or move publish ownership to SylphxAI/.github.",
+        "owner": "SylphxAI/actions",
+        "target": "Open a follow-up action-surface freshness PR after manifest rollout."
+      },
+      {
+        "id": "action-validation-gate",
+        "description": "No repository-local CI currently validates composite action metadata or README/action surface freshness.",
+        "owner": "SylphxAI/actions",
+        "target": "Adopt an action metadata and doc-surface validation gate before the next action contract change."
+      }
+    ]
+  }
+}
