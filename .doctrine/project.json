@@ -5,6 +5,7 @@
     "name": "SylphxAI Actions",
     "lifecycle": "production",
     "layer": "tooling",
+    "policyPool": "agent-tool",
     "summary": "Shared GitHub Actions repository for reusable automation consumed by SylphxAI repositories through versioned action references.",
     "goals": [
       "Provide shared, versioned GitHub Action surfaces for SylphxAI repositories.",
@@ -82,6 +83,7 @@
   },
   "delivery": {
     "ciModel": "none",
+    "deployable": false,
     "requiredContexts": [],
     "deployPath": "Consumers reference action paths through Git refs such as v1; there is no separate runtime deploy for this repository.",
     "productionProof": "GitHub main/tag readback, action metadata validation, and successful downstream consumer workflow runs.",
