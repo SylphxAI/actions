@@ -31,11 +31,14 @@ It must:
 1. check out the repository;
 2. set up Node.js 22.14.0;
 3. run `node --test tests/action-surface.test.mjs`;
-4. run `SylphxAI/groundatlas@v0.1.2` with `package-spec:
-   groundatlas@0.1.2`, `require-atlas: "true"`, and `strict: "true"`;
+4. run `SylphxAI/groundatlas@v0.1.3` with `package-spec:
+   groundatlas@0.1.3`, `require-atlas: "true"`, and `strict: "true"`;
 5. assert that GroundAtlas selects `project.manifest.json` and treats
    `.doctrine/project.json` only as an adapter;
-6. upload the manifest and fleet reports as `groundatlas-package-dogfood`.
+6. assert the human-readable Markdown scorecard reports one adopted project with
+   zero warnings and zero blockers;
+7. upload the manifest JSON, fleet JSON, and fleet Markdown reports as
+   `groundatlas-package-dogfood`.
 
 ## Acceptance
 
@@ -47,3 +50,5 @@ It must:
 - `ga manifest --json` selects `project.manifest.json`.
 - `ga fleet --require-atlas --strict --json` reports one adopted project with
   zero warnings and zero blockers.
+- `ga fleet --require-atlas --strict` renders a Markdown scorecard with the
+  same adopted summary.

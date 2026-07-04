@@ -36,5 +36,7 @@ Start with [PROJECT.md](./PROJECT.md) for the human project boundary and
 [`project.manifest.json`](./project.manifest.json) for the vendor-neutral
 machine-readable project control file.
 
-Generated `.groundatlas*` reports are evidence/navigation only. They are not the
-source of truth for action contracts or downstream consumer delivery proof.
+The local GroundAtlas workflow uploads manifest JSON, fleet JSON, and the fleet
+Markdown scorecard as evidence/navigation only. Generated `.groundatlas*`
+reports are not the source of truth for action contracts or downstream consumer
+delivery proof.

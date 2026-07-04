@@ -38,8 +38,8 @@ This repository owns reusable action implementations and their public action ref
 
 This repository has a lightweight local GroundAtlas project-control workflow. It
 validates `project.manifest.json`, keeps `.doctrine/project.json` as a Sylphx
-Doctrine adapter, runs action-surface tests, and uploads GroundAtlas reports as
-evidence only.
+Doctrine adapter, runs action-surface tests, and uploads GroundAtlas manifest
+JSON, fleet JSON, and fleet Markdown scorecard reports as evidence only.
 
 The repository currently has no required status contexts on `main`. Action
 consumers use versioned Git refs such as `v1`; production proof is GitHub
