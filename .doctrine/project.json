@@ -10,6 +10,7 @@
     "goals": [
       "Provide shared, versioned GitHub Action surfaces for SylphxAI repositories.",
       "Maintain the Slack notification composite action in slack-notify/action.yml.",
+      "Keep README action paths aligned with action directories that exist on main.",
       "Keep action ownership, public surfaces, and adoption gaps explicit for agents."
     ],
     "nonGoals": [
@@ -44,12 +45,32 @@
         "type": "documentation",
         "name": "Action usage README",
         "location": "README.md"
+      },
+      {
+        "type": "manifest",
+        "name": "Vendor-neutral project manifest",
+        "location": "project.manifest.json"
+      },
+      {
+        "type": "workflow",
+        "name": "GroundAtlas local project-control workflow",
+        "location": ".github/workflows/groundatlas.yml"
+      },
+      {
+        "type": "test",
+        "name": "Action surface boundary test",
+        "location": "tests/action-surface.test.mjs"
       }
     ],
     "allowedDependencies": [
       {
         "repo": "SylphxAI/doctrine",
         "surface": "project manifest schema and engineering doctrine",
+        "direction": "peer-public"
+      },
+      {
+        "repo": "SylphxAI/groundatlas",
+        "surface": "Released GroundAtlas package/action for vendor-neutral project manifest validation and fleet dogfooding.",
         "direction": "peer-public"
       }
     ],
@@ -62,19 +83,19 @@
   "documentation": {
     "adr": {
       "path": "docs/adr/",
-      "status": "planned"
+      "status": "present"
     },
     "specs": {
       "path": "docs/specs/",
-      "status": "planned"
+      "status": "present"
     },
     "catalog": {
       "path": ".doctrine/project.json",
       "status": "present"
     },
     "runbooks": {
-      "path": "docs/runbooks/",
-      "status": "not-applicable"
+      "path": "README.md",
+      "status": "present"
     },
     "generatedReferences": {
       "path": "README.md",
@@ -82,27 +103,24 @@
     }
   },
   "delivery": {
-    "ciModel": "none",
+    "ciModel": "groundatlas-action-surface",
     "deployable": false,
     "requiredContexts": [],
+    "localContexts": [
+      "groundatlas"
+    ],
     "deployPath": "Consumers reference action paths through Git refs such as v1; there is no separate runtime deploy for this repository.",
-    "productionProof": "GitHub main/tag readback, action metadata validation, and successful downstream consumer workflow runs.",
+    "productionProof": "GitHub main/tag readback plus successful local GroundAtlas project-control CI. Action contract behavior changes still require action metadata validation and successful downstream consumer workflow runs.",
     "recoveryClass": "source-revertable"
   },
   "adoption": {
-    "status": "baseline",
+    "status": "adopted",
     "gaps": [
       {
-        "id": "readme-action-surface-drift",
-        "description": "README documents a publish action path that is not present on main; align README, restore the action, or move publish ownership to SylphxAI/.github.",
+        "id": "branch-protection-required-contexts",
+        "description": "Repository now has local GroundAtlas CI, but main branch protection does not require it yet. Organization ruleset adoption remains a separate infrastructure decision.",
         "owner": "SylphxAI/actions",
-        "target": "Open a follow-up action-surface freshness PR after manifest rollout."
-      },
-      {
-        "id": "action-validation-gate",
-        "description": "No repository-local CI currently validates composite action metadata or README/action surface freshness.",
-        "owner": "SylphxAI/actions",
-        "target": "Adopt an action metadata and doc-surface validation gate before the next action contract change."
+        "target": "org ruleset rollout decision"
       }
     ]
   }
