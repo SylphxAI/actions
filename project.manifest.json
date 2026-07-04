@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/SylphxAI/groundatlas/main/schemas/project.manifest.schema.json",
+  "schemaVersion": 1,
+  "project": {
+    "id": "sylphxai-actions",
+    "name": "SylphxAI Actions",
+    "summary": "Shared GitHub Actions repository for reusable, versioned action implementations consumed by SylphxAI repositories.",
+    "lifecycle": "production",
+    "visibility": "open-source",
+    "repository": "https://github.com/SylphxAI/actions",
+    "homepage": "https://github.com/SylphxAI/actions",
+    "tags": [
+      "github-actions",
+      "shared-actions",
+      "tooling",
+      "control-plane"
+    ]
+  },
+  "truth": {
+    "humanProjectFile": "PROJECT.md",
+    "agentAdapter": "AGENTS.md",
+    "specs": [
+      "docs/specs/"
+    ],
+    "adrs": [
+      "docs/adr/"
+    ],
+    "source": [
+      "slack-notify/action.yml",
+      ".github/workflows/groundatlas.yml",
+      "README.md"
+    ],
+    "tests": [
+      "tests/",
+      ".github/workflows/groundatlas.yml"
+    ],
+    "runbooks": [
+      "README.md",
+      "PROJECT.md",
+      "SECURITY.md"
+    ]
+  },
+  "surfaces": [
+    {
+      "type": "github-action",
+      "name": "Slack notify composite action",
+      "path": "slack-notify/action.yml",
+      "description": "Versioned composite action for sending Slack webhook notifications."
+    },
+    {
+      "type": "workflow",
+      "name": "GroundAtlas local control-plane gate",
+      "path": ".github/workflows/groundatlas.yml",
+      "description": "Repository-local action-surface validation and GroundAtlas package dogfood gate."
+    },
+    {
+      "type": "docs",
+      "name": "Repository entry point",
+      "path": "README.md",
+      "description": "Public action usage documentation."
+    },
+    {
+      "type": "docs",
+      "name": "Project control plane",
+      "path": "PROJECT.md",
+      "description": "Human project identity, boundary, lifecycle, and delivery entry point."
+    },
+    {
+      "type": "docs",
+      "name": "Doctrine adapter manifest",
+      "path": ".doctrine/project.json",
+      "description": "Sylphx Doctrine adapter and org-local governance catalog; not the vendor-neutral GroundAtlas default."
+    }
+  ],
+  "commands": [
+    {
+      "name": "test:action-surface",
+      "command": "node --test tests/action-surface.test.mjs",
+      "purpose": "Verify documented action paths exist and non-owned publish workflow paths are not advertised."
+    },
+    {
+      "name": "groundatlas:fleet",
+      "command": "npm exec --yes --package groundatlas@0.1.2 -- ga fleet . --out .groundatlas-pilot --require-atlas --strict --json",
+      "purpose": "Prove the vendor-neutral manifest is selected and generated GroundAtlas files are navigation-only."
+    }
+  ],
+  "adoption": {
+    "status": "adopted",
+    "notes": "Vendor-neutral GroundAtlas manifest for package/action dogfooding. .doctrine/project.json remains the Sylphx Doctrine adapter and local governance catalog. Generated .groundatlas* reports are evidence/navigation only, not source of truth."
+  }
+}
