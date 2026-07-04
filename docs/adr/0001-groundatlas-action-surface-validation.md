@@ -21,8 +21,8 @@ the Sylphx-specific adapter.
 Add:
 
 - a vendor-neutral `project.manifest.json`;
-- a local `GroundAtlas` workflow using `SylphxAI/groundatlas@v0.1.2` and
-  `groundatlas@0.1.2`;
+- a local `GroundAtlas` workflow using `SylphxAI/groundatlas@v0.1.3` and
+  `groundatlas@0.1.3`;
 - an action-surface test that proves documented action paths exist and the
   non-owned publish path is not advertised;
 - concise project-control documentation in `PROJECT.md`, README, this ADR, and
@@ -37,5 +37,6 @@ Add:
 - GroundAtlas generated files remain evidence/navigation only, not source of
   truth.
 - Main readback plus the local GroundAtlas workflow are the first proof surface
-  for this repository's own changes; downstream consumer workflow proof is
-  still required for action contract behavior changes.
+  for this repository's own changes; the workflow keeps manifest JSON, fleet
+  JSON, and fleet Markdown scorecards as evidence only. Downstream consumer
+  workflow proof is still required for action contract behavior changes.
